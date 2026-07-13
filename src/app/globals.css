@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
+/* Design tokens modelled on Claude's UI — warm paper (light) / warm charcoal
+   (dark) with a clay accent. Components style through these tokens only. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --canvas: #faf9f5;
+  --panel: #f2f0e9;
+  --raised: #ffffff;
+  --raised-line: #e6e1d6;
+  --bubble: #efece3;
+  --ink: #29261f;
+  --muted: #6c675b;
+  --faint: #a49d8d;
+  --line: #e8e3d8;
+  --line-strong: #d7d1c3;
+  --accent: #c15f3c;
+  --accent-hover: #a94f30;
+  --accent-ink: #ffffff;
+  --code-bg: #1c1b19;
+  --code-ink: #e6e3db;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #262624;
+    --panel: #1f1e1d;
+    --raised: #30302e;
+    --raised-line: #413f3a;
+    --bubble: #34322e;
+    --ink: #f5f3ee;
+    --muted: #a8a39a;
+    --faint: #7c766c;
+    --line: #37352f;
+    --line-strong: #47443c;
+    --accent: #d97757;
+    --accent-hover: #e08a6c;
+    --accent-ink: #1f1e1d;
+    --code-bg: #1b1a18;
+    --code-ink: #e6e3db;
   }
 }
 
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-raised-line: var(--raised-line);
+  --color-bubble: var(--bubble);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-code-bg: var(--code-bg);
+  --color-code-ink: var(--code-ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-display), ui-serif, Georgia, serif;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 40%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--muted) 38%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

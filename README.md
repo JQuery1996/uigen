@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UIGen
 
-## Getting Started
+Generate React UI components from a prompt — a Claude-style chat where you describe
+a component and it streams in live, with **Code** and **Preview** tabs. Create
+projects, chat inside each one, and every result is stored locally.
 
-First, run the development server:
+## What it does
+
+- **Chat → component.** Describe a UI ("a pricing page with three tiers") and a
+  self-contained React + Tailwind component streams back token-by-token, like Claude.
+- **Code & Preview tabs.** The component renders live in a sandboxed iframe
+  (transpiled in-browser with Babel; React + Tailwind loaded from CDN) and you can
+  read/copy the source. No remote build service — the preview is instant.
+- **Projects.** Create projects from the sidebar; each has its own chat history and
+  current component. Everything persists to a local SQLite database.
+- **Iterate.** Follow-up messages ("make it dark mode", "add a footer") modify the
+  existing component — the full history is kept.
+- **Retry & versions.** Regenerate any reply with **Retry**; swap between results
+  with a `‹ 1 / 2 ›` pager (chat text and preview both update), like Claude/ChatGPT.
+- **Rich output.** Generated components can use **Lucide icons** (`<LucideReact.Star/>`)
+  and **real images** (Lorem Picsum / Pravatar), and are prompted for distinctive,
+  non-generic design.
+- **Optional Magic MCP.** Set `TWENTYFIRST_API_KEY` in `.env` to route generation
+  through the [21st.dev Magic](https://21st.dev/magic) MCP for a higher ceiling
+  (off by default; see `.env`).
+- **Off-topic guardrail.** Ask something unrelated and it politely explains it only
+  builds UI components (no code returned).
+- **Responsive.** Works on mobile — the sidebar becomes a drawer and the workspace
+  toggles between Chat and Preview.
+
+## How generation works (no API key required)
+
+The backend calls the **Claude Agent SDK** (`@anthropic-ai/claude-agent-sdk`). The
+request goes to Claude and Claude generates the component — there is **no OpenAI or
+paid Claude API key in the app**. Auth is resolved from the Claude credentials
+already on your machine.
+
+Pick **one** auth path (see `.env`):
+
+1. **Subscription token (recommended — no per-token billing).** If you have a Claude
+   Pro/Max plan, mint a token once:
+   ```bash
+   npx claude setup-token
+   ```
+   Put the value in `.env` as `CLAUDE_CODE_OAUTH_TOKEN=...`. (If you're already
+   logged into Claude Code on this machine, the SDK may pick that session up
+   automatically.)
+2. **API key.** Set `ANTHROPIC_API_KEY=sk-ant-...` in `.env` (pay-per-token).
+
+Change the model with `UIGEN_MODEL` (default `claude-sonnet-5`).
+
+> Because it uses your machine's Claude login, this is designed to run **locally /
+> single-user**. To deploy publicly you'd add server-side credentials + auth.
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx prisma generate      # generate the Prisma client
+npx prisma db push       # create prisma/dev.db (SQLite)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then set your Claude auth in `.env` (see above) and run:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev              # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech
 
-## Learn More
+| Layer     | Choice                                             |
+| --------- | -------------------------------------------------- |
+| Framework | Next.js 16 (App Router) + TypeScript + Tailwind v4 |
+| AI        | Claude Agent SDK (streamed via Server-Sent Events) |
+| Preview   | Sandboxed iframe (Babel Standalone + React + Tailwind CDN) |
+| Storage   | Prisma + SQLite (`prisma/dev.db`)                  |
+| Icons     | lucide-react                                       |
 
-To learn more about Next.js, take a look at the following resources:
+## Project structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+prisma/schema.prisma            Project + Message models
+src/lib/generate.ts             Claude Agent SDK wrapper (system prompt + streaming)
+src/lib/parse.ts                Splits reply into chat prose + component code
+src/lib/preview.ts              Builds the sandboxed iframe document (transpile + render)
+src/app/api/chat/route.ts       Streaming generation endpoint (SSE) + persistence
+src/app/api/projects/...        Project CRUD
+src/components/AppShell.tsx     Sidebar + responsive drawer
+src/components/Workspace.tsx    Chat + live streaming + preview orchestration
+src/components/PreviewPanel.tsx Code/Preview tabs (iframe preview + source view)
+src/app/project/[id]/page.tsx   The per-project workspace
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Generated components are self-contained (default export, only `react` imported,
+  styled with Tailwind), so they render reliably in the sandbox.
+- The assistant returns a short sentence plus one `tsx` code block; the app extracts
+  the code for the preview and shows the sentence in the chat.
