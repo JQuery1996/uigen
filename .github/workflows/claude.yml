@@ -24,11 +24,31 @@ jobs:
       issues: read
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
+    env:
+      # Prisma's datasource reads env("DATABASE_URL"); a relative sqlite path
+      # resolves next to schema.prisma, i.e. prisma/dev.db (matches CLAUDE.md).
+      DATABASE_URL: file:./dev.db
+      # Lets the running app's generation feature authenticate, so Claude can
+      # exercise the full chat -> component flow in the browser, not just the shell.
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Project Setup
+        run: |
+          npm ci
+          npm run setup                              # prisma generate + db push (creates prisma/dev.db)
+          npx playwright install --with-deps chromium # browsers aren't preinstalled on the runner
+          npm run dev:daemon                         # boots next dev in the background, logs -> logs.txt
 
       - name: Run Claude Code
         id: claude
@@ -43,8 +63,10 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # v1 consolidates custom instructions, MCP config, and tool permissions
+          # into claude_args (CLI flags). Each flag goes on its own line.
+          claude_args: |
+            --append-system-prompt "The project is already set up with all dependencies installed. The dev server is already running at http://localhost:3000, with its logs written to logs.txt in the repo root. The SQLite DB lives at prisma/dev.db and can be queried with the sqlite3 CLI. Use the mcp__playwright browser tools to open the app and interact with it when verifying UI changes."
+            --mcp-config '{"mcpServers": {"playwright": {"command": "npx", "args": ["@playwright/mcp@latest", "--allowed-origins", "localhost:3000;cdn.tailwindcss.com;esm.sh"]}}}'
+            --allowedTools "Edit,Read,Write,Glob,Grep,Bash(npm:*),Bash(npx:*),Bash(sqlite3:*),Bash(git:*),mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot,mcp__playwright__browser_click,mcp__playwright__browser_type,mcp__playwright__browser_fill_form,mcp__playwright__browser_hover,mcp__playwright__browser_select_option,mcp__playwright__browser_press_key,mcp__playwright__browser_wait_for,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_navigate_back,mcp__playwright__browser_console_messages"
 
